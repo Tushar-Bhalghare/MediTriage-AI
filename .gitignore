@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .env
-uploads/report_*
+uploads/*
+!.gitkeep
 .DS_Store
 Thumbs.db

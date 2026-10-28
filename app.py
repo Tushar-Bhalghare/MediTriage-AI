@@ -7,18 +7,60 @@ from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw, ImageFont
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
-STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
+IS_VERCEL = bool(os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'))
+
+# Serverless and local path resolution
+candidate_roots = [
+    BASE_DIR,
+    os.path.dirname(BASE_DIR),
+    os.getcwd(),
+    '/var/task',
+    '/var/task/api'
+]
+
+template_dirs = [os.path.join(r, 'templates') for r in candidate_roots]
+TEMPLATE_FOLDER = next((d for d in template_dirs if os.path.isdir(d)), os.path.join(BASE_DIR, 'templates'))
+
+static_dirs = [os.path.join(r, 'static') for r in candidate_roots]
+STATIC_FOLDER = next((d for d in static_dirs if os.path.isdir(d)), os.path.join(BASE_DIR, 'static'))
 SAMPLES_FOLDER = os.path.join(STATIC_FOLDER, 'samples')
+
+UPLOAD_FOLDER = '/tmp/uploads' if IS_VERCEL else os.path.join(BASE_DIR, 'uploads')
 
 app = Flask(
     __name__,
-    template_folder=os.path.join(BASE_DIR, 'templates'),
+    template_folder=TEMPLATE_FOLDER,
     static_folder=STATIC_FOLDER
 )
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(SAMPLES_FOLDER, exist_ok=True)
+class VercelPathRewriteMiddleware:
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        qs = environ.get('QUERY_STRING', '')
+        if 'path=' in qs:
+            from urllib.parse import parse_qs, urlencode
+            params = parse_qs(qs, keep_blank_values=True)
+            if 'path' in params:
+                req_path = params.pop('path')[0].strip()
+                environ['PATH_INFO'] = '/' + req_path.lstrip('/') if req_path else '/'
+                environ['QUERY_STRING'] = urlencode(params, doseq=True)
+        elif environ.get('PATH_INFO') in ['/api/index', '/api/index.py']:
+            environ['PATH_INFO'] = '/'
+        return self.wsgi_app(environ, start_response)
+
+app.wsgi_app = VercelPathRewriteMiddleware(app.wsgi_app)
+
+try:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+except Exception:
+    pass
+
+try:
+    os.makedirs(SAMPLES_FOLDER, exist_ok=True)
+except Exception:
+    pass
 
 # CLINICAL BIOMARKER DATABASE & REFERENCE INTERVALS
 BIOMARKER_METRIC_DB = {
@@ -271,8 +313,26 @@ def evaluate_triage(biomarkers, symptoms=""):
     }
 
 @app.route('/')
+@app.route('/api/index')
 def index():
-    return render_template('index.html')
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        for t_dir in [TEMPLATE_FOLDER] + template_dirs:
+            candidate = os.path.join(t_dir, 'index.html')
+            if os.path.exists(candidate):
+                with open(candidate, 'r', encoding='utf-8') as f:
+                    return f.read(), 200, {'Content-Type': 'text/html; charset=utf-8'}
+        return f"MediTriage AI is online. Status: {str(e)}", 200, {'Content-Type': 'text/plain'}
+
+@app.route('/api/health', methods=['GET'])
+def health():
+    return jsonify({
+        "status": "healthy",
+        "service": "MediTriage AI",
+        "engine": "Antigravity AI Bio-Nutrition",
+        "environment": "Vercel Serverless" if IS_VERCEL else "Localhost"
+    })
 
 @app.route('/api/samples', methods=['GET'])
 def get_samples():
@@ -281,9 +341,13 @@ def get_samples():
         "samples": SAMPLE_REPORTS
     })
 
-@app.route('/static/samples/<filename>')
-def serve_sample(filename):
-    return send_from_directory(SAMPLES_FOLDER, filename)
+@app.route('/static/<path:filename>')
+def serve_static_asset(filename):
+    for s_dir in [STATIC_FOLDER] + static_dirs:
+        candidate = os.path.join(s_dir, filename)
+        if os.path.exists(candidate):
+            return send_from_directory(os.path.dirname(candidate), os.path.basename(candidate))
+    return "Asset not found", 404
 
 @app.route('/uploads/<filename>')
 def serve_upload(filename):
