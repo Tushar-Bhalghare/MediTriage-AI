@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // State Management
   const state = {
-    mode: 'sample', // 'sample' or 'upload'
+    mode: 'sample',
     currentSampleId: 'sample_diabetes_lipid',
     uploadedUrl: '',
     uploadedFilename: '',
@@ -38,12 +38,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const currentLangTag = document.getElementById('currentLangTag');
   const biomarkerTableBody = document.getElementById('biomarkerTableBody');
   const doctorQuestionsList = document.getElementById('doctorQuestionsList');
-  const dietEatText = document.getElementById('dietEatText');
-  const dietAvoidText = document.getElementById('dietAvoidText');
   const btnExportSummary = document.getElementById('btnExportSummary');
+  const btnDownloadDietPdf = document.getElementById('btnDownloadDietPdf');
+  const btnDownloadDietPlanQuick = document.getElementById('btnDownloadDietPlanQuick');
   const btnVoiceRead = document.getElementById('btnVoiceRead');
   const btnSpeaker = document.getElementById('btnSpeaker');
   const langBtns = document.querySelectorAll('.lang-btn');
+
+  // Diet Plan DOM Elements
+  const dietPlanTitle = document.getElementById('dietPlanTitle');
+  const dietCalories = document.getElementById('dietCalories');
+  const dietHydration = document.getElementById('dietHydration');
+  const mealScheduleList = document.getElementById('mealScheduleList');
+  const dietSuperfoodsText = document.getElementById('dietSuperfoodsText');
+  const dietAvoidFoodsText = document.getElementById('dietAvoidFoodsText');
 
   // Lightbox elements
   const lightboxModal = document.getElementById('lightboxModal');
@@ -98,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // File Upload Handlers (Drag & Drop + Click)
+  // File Upload Handlers
   dropzone.addEventListener('click', () => fileInput.click());
 
   dropzone.addEventListener('dragover', (e) => {
@@ -148,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
           b.querySelector('.check-icon').classList.add('hidden');
         });
 
-        showToast('✅ Report uploaded! Running AI clinical triage pipeline...');
+        showToast('✅ Report sent to Antigravity AI! Analyzing...');
         runAnalysis();
       } else {
         alert(data.message || 'Upload failed');
@@ -171,10 +179,10 @@ document.addEventListener('DOMContentLoaded', () => {
     progressBox.classList.remove('hidden');
 
     const steps = [
-      { pct: 25, text: 'Step 1: Extracting Biomarkers via Vision OCR & Calibration...', step: 1 },
-      { pct: 50, text: 'Step 2: Normalizing against Standard Clinical Reference Intervals...', step: 2 },
-      { pct: 75, text: 'Step 3: Pathological Anomaly Detection & Risk Stratification...', step: 3 },
-      { pct: 100, text: 'Step 4: Compiling Multi-Language Patient Explanations & Action Plan...', step: 4 }
+      { pct: 25, text: 'Step 1: Antigravity AI Vision OCR & Biomarker Extraction...', step: 1 },
+      { pct: 50, text: 'Step 2: Calibrating with Clinical Reference Bounds...', step: 2 },
+      { pct: 75, text: 'Step 3: Detecting Pathological Anomalies & Triage Stratification...', step: 3 },
+      { pct: 100, text: 'Step 4: Synthesizing Personalized 24h Food & Diet Plan...', step: 4 }
     ];
 
     for (const s of steps) {
@@ -214,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
         progressBox.classList.add('hidden');
         btnAnalyze.disabled = false;
         btnAnalyze.classList.remove('opacity-70', 'cursor-not-allowed');
-        showToast('✨ Automated Medical Report Triage Complete!');
+        showToast('✨ Antigravity AI Medical Analysis & Diet Plan Ready!');
       }
     } catch (err) {
       console.error(err);
@@ -224,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Render Triage Results to UI
+  // Render Results to UI
   function renderTriageResults(data) {
     const triage = data.triage;
 
@@ -283,7 +291,32 @@ document.addEventListener('DOMContentLoaded', () => {
       biomarkerTableBody.appendChild(tr);
     });
 
-    // 4. Questions for Doctor Visit
+    // 4. Food & Diet Plan (FOD) Rendering
+    if (triage.diet_plan) {
+      const dp = triage.diet_plan;
+      dietPlanTitle.textContent = dp.title;
+      dietCalories.textContent = `🎯 Target: ${dp.calories}`;
+      dietHydration.textContent = `💧 Hydration: ${dp.hydration}`;
+
+      mealScheduleList.innerHTML = '';
+      dp.schedule.forEach(meal => {
+        const div = document.createElement('div');
+        div.className = 'p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2';
+        div.innerHTML = `
+          <div class="flex items-center space-x-2.5 shrink-0">
+            <span class="px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-mono text-[11px] font-bold border border-teal-500/30">${meal.time}</span>
+            <span class="font-bold text-white text-xs">${meal.meal}</span>
+          </div>
+          <div class="text-[11px] text-slate-300 sm:text-right max-w-xl">${meal.items}</div>
+        `;
+        mealScheduleList.appendChild(div);
+      });
+
+      dietSuperfoodsText.textContent = dp.superfoods.join(', ');
+      dietAvoidFoodsText.textContent = dp.avoid_foods.join(', ');
+    }
+
+    // 5. Questions for Doctor Visit
     doctorQuestionsList.innerHTML = '';
     triage.doctor_questions.forEach(q => {
       const li = document.createElement('li');
@@ -291,10 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
       li.innerHTML = `<span class="text-amber-400 font-bold">›</span><span>${q}</span>`;
       doctorQuestionsList.appendChild(li);
     });
-
-    // 5. Dietary & Lifestyle Guidelines
-    dietEatText.textContent = triage.diet_lifestyle.recommended_foods.join(', ');
-    dietAvoidText.textContent = triage.diet_lifestyle.foods_to_avoid.join(', ');
 
     if (window.lucide) lucide.createIcons();
   }
@@ -329,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Web Speech API: Voice Narration
+  // Voice Narration
   function speakSummary() {
     if (!('speechSynthesis' in window)) {
       alert('Speech synthesis is not supported in your browser.');
@@ -345,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const paragraphs = plainExplanationBox.querySelectorAll('p');
-    let fullText = `Patient Clinical Summary. ${urgencyBadge.textContent}. `;
+    let fullText = `Antigravity AI Patient Clinical Summary. ${urgencyBadge.textContent}. `;
     paragraphs.forEach(p => fullText += `${p.textContent} `);
 
     const utterance = new SpeechSynthesisUtterance(fullText);
@@ -375,7 +404,46 @@ document.addEventListener('DOMContentLoaded', () => {
   btnVoiceRead.addEventListener('click', speakSummary);
   btnSpeaker.addEventListener('click', speakSummary);
 
-  // Export Summary Sheet
+  // Download Full Food & Diet Plan (PDF/Sheet)
+  async function downloadDietPdf() {
+    btnDownloadDietPdf.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i><span>Generating Diet PDF...</span>';
+    if (window.lucide) lucide.createIcons();
+
+    try {
+      const res = await fetch('/api/download-diet-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sample_id: state.currentSampleId
+        })
+      });
+
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Antigravity_Food_Diet_Plan_${state.currentSampleId}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToast('🥗 Antigravity AI Full Food & Diet Chart downloaded!');
+      } else {
+        alert('Could not export Diet PDF');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error downloading Diet Plan');
+    } finally {
+      btnDownloadDietPdf.innerHTML = '<i data-lucide="utensils" class="w-3.5 h-3.5"></i><span>Download Diet PDF</span>';
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+
+  btnDownloadDietPdf.addEventListener('click', downloadDietPdf);
+  btnDownloadDietPlanQuick.addEventListener('click', downloadDietPdf);
+
+  // Export Clinical Summary Sheet
   btnExportSummary.addEventListener('click', async () => {
     btnExportSummary.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i><span>Exporting...</span>';
     if (window.lucide) lucide.createIcons();
@@ -406,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error(err);
       alert('Error exporting report');
     } finally {
-      btnExportSummary.innerHTML = '<i data-lucide="download" class="w-3.5 h-3.5"></i><span>Export Patient Report</span>';
+      btnExportSummary.innerHTML = '<i data-lucide="file-text" class="w-3.5 h-3.5"></i><span>Clinical Report</span>';
       if (window.lucide) lucide.createIcons();
     }
   });

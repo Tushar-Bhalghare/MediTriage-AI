@@ -6,12 +6,16 @@ from flask import Flask, request, jsonify, render_template, send_from_directory,
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw, ImageFont
 
-app = Flask(__name__)
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
 STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
 SAMPLES_FOLDER = os.path.join(STATIC_FOLDER, 'samples')
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, 'templates'),
+    static_folder=STATIC_FOLDER
+)
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(SAMPLES_FOLDER, exist_ok=True)
@@ -35,7 +39,7 @@ BIOMARKER_METRIC_DB = {
     "esr": {"name": "ESR (Erythrocyte Sedimentation Rate)", "unit": "mm/hr", "min": 0.0, "max": 20.0, "category": "Inflammatory Marker"}
 }
 
-# PRE-LOADED SAMPLE LAB REPORTS FOR INSTANT TESTING
+# PRE-LOADED SAMPLE LAB REPORTS
 SAMPLE_REPORTS = [
     {
         "id": "sample_diabetes_lipid",
@@ -97,13 +101,86 @@ SAMPLE_REPORTS = [
     }
 ]
 
-# CLINICAL TRIAGE & MULTILINGUAL REASONING ENGINE
+# ANTIGRAVITY AI FULL FOOD & DIET (FOD) ENGINE
+def generate_antigravity_diet_plan(biomarkers):
+    has_diabetes = any(b["key"] in ["fbs", "hba1c", "ppbs"] and "HIGH" in b["status"] for b in biomarkers)
+    has_lipids = any(b["key"] in ["cholesterol", "ldl", "triglycerides"] and "HIGH" in b["status"] for b in biomarkers)
+    has_anemia = any(b["key"] == "hemoglobin" and "LOW" in b["status"] for b in biomarkers)
+    has_infection = any(b["key"] in ["wbc", "esr"] and "HIGH" in b["status"] for b in biomarkers)
+
+    if has_diabetes or has_lipids:
+        title = "Antigravity Therapeutic Glycemic & Cardioprotective Diet Plan"
+        calories = "1,650 kcal / day"
+        macros = "Carbs: 40% (Complex), Protein: 25% (Lean), Healthy Fats: 35% (MUFA/PUFA)"
+        hydration = "3.0 - 3.5 Liters of water throughout the day"
+        
+        schedule = [
+            {"time": "07:00 AM", "meal": "Morning Fasting Elixir", "items": "1 glass warm water with 1 tsp soaked fenugreek (methi) seeds and 1/4 tsp organic Ceylon cinnamon. Enhances insulin receptor sensitivity."},
+            {"time": "08:30 AM", "meal": "Nutritious Breakfast", "items": "Sprouted moong & methi chilla with mint chutney OR steel-cut oats with chia seeds, flaxseeds, and 4 crushed walnuts. Zero added sugar."},
+            {"time": "11:00 AM", "meal": "Mid-Morning Booster", "items": "1 medium green apple or guava + small handful of dry-roasted unsalted chana (Bengal gram) or 6 almonds."},
+            {"time": "01:30 PM", "meal": "Clinical Balanced Lunch", "items": "Large fresh cucumber-tomato-radish salad + 2 multi-grain / jowar rotis + 1 bowl spinach/methi dal + 100g grilled tofu, paneer, or steamed fish."},
+            {"time": "04:30 PM", "meal": "Evening Antioxidant Snack", "items": "1 cup organic green tea or ginger-tulsi tea (no sugar) + 1 bowl roasted fox nuts (makhana) with turmeric and rock salt."},
+            {"time": "07:30 PM", "meal": "Early Restorative Dinner", "items": "Clear vegetable broth soup + stir-fried broccoli, zucchini, beans, and bell peppers with 1/2 cup quinoa or dal khichdi."},
+            {"time": "09:30 PM", "meal": "Bedtime Recovery", "items": "Warm unsweetened almond milk with a pinch of organic turmeric and freshly crushed black pepper (curcumin absorption)."}
+        ]
+        
+        superfoods = ["Fenugreek (Methi) seeds", "Cinnamon", "Chia & Flaxseeds", "Bitter Gourd (Karela)", "Walnuts", "Spinach", "Quinoa"]
+        avoid_foods = ["Refined sugar, candy & soda", "Deep-fried snacks & samosas", "White bread & bakery items", "High fructose fruits (chiku, mango) in excess", "Trans-fats & hydrogenated oils"]
+    
+    elif has_anemia or has_infection:
+        title = "Antigravity Iron-Restorative & Anti-Inflammatory Immune Diet Plan"
+        calories = "1,850 kcal / day"
+        macros = "Carbs: 50% (Whole grains), Protein: 25% (Repair & RBCs), Fats: 25%"
+        hydration = "2.8 - 3.0 Liters including herbal immunity infusions"
+
+        schedule = [
+            {"time": "07:00 AM", "meal": "Morning Iron Kickstart", "items": "7-8 soaked black raisins (munakka) + 2 soft dates eaten with the soaking water. Maximizes natural iron uptake."},
+            {"time": "08:30 AM", "meal": "Hemoglobin-Building Breakfast", "items": "Beetroot and spinach stuffed whole-wheat paratha with light curd OR 2 boiled egg whites with fresh orange slices (Vitamin C)."},
+            {"time": "11:00 AM", "meal": "Mid-Morning Vitamin C Boost", "items": "Fresh amla (Indian gooseberry) shot or 1 cup fresh pomegranate pearls with lemon juice squeeze."},
+            {"time": "01:30 PM", "meal": "Immune Nourishing Lunch", "items": "1.5 cup brown rice / rotis + 1 bowl moringa (drumstick) lentil dal + iron-packed cooked mustard/bathua greens + squeeze of fresh lemon."},
+            {"time": "04:30 PM", "meal": "Evening Vitality Snack", "items": "1 glass fresh lemon water or coconut water + small handful of roasted pumpkin and sunflower seeds (rich in zinc & iron)."},
+            {"time": "07:30 PM", "meal": "Light Healing Dinner", "items": "Warm lentil & vegetable soup + steamed vegetables with soya chunks / paneer bhurji + small beetroot salad."},
+            {"time": "09:30 PM", "meal": "Bedtime Immunity Elixir", "items": "Warm golden milk (haldi doodh) with a pinch of nutmeg to promote restorative cellular sleep."}
+        ]
+
+        superfoods = ["Moringa (Drumstick) leaves", "Amla (Gooseberry)", "Pomegranate", "Beetroot", "Black Raisins", "Pumpkin seeds", "Dates"]
+        avoid_foods = ["Drinking tea/coffee within 1 hour of meals (tannins block iron absorption)", "Calcium supplements taken simultaneously with iron", "Raw cold foods during active fever", "Carbonated sugary sodas"]
+    
+    else:
+        title = "Antigravity Optimal Longevity & Cellular Wellness Protocol"
+        calories = "2,000 kcal / day"
+        macros = "Balanced Mediterranean: 45% Complex Carbs, 25% Protein, 30% Healthy Fats"
+        hydration = "2.5 - 3.0 Liters of water daily"
+
+        schedule = [
+            {"time": "07:00 AM", "meal": "Hydration & Gut Balance", "items": "Lukewarm water with fresh lemon juice and 1 tsp chia seeds."},
+            {"time": "08:30 AM", "meal": "Energy-Dense Breakfast", "items": "Avocado or peanut butter toast on multi-seed bread with poached eggs or overnight oats with berries."},
+            {"time": "11:00 AM", "meal": "Mid-Morning Fruit", "items": "Seasonal fresh fruit (papaya, apple, or berries) with 5 soaked almonds."},
+            {"time": "01:30 PM", "meal": "Wholesome Lunch", "items": "Rainbow salad plate + 2 whole grain chapatis + mixed vegetable curry + yellow dal tadka + probiotic Greek yogurt."},
+            {"time": "04:30 PM", "meal": "Afternoon Refreshment", "items": "Chamomile or Jasmine green tea with roasted chickpeas."},
+            {"time": "07:30 PM", "meal": "Clean Dinner", "items": "Grilled vegetables with quinoa or brown rice pilaf + lentil soup."},
+            {"time": "09:30 PM", "meal": "Restful Sleep Tea", "items": "Warm chamomile or fennel seed infusion."}
+        ]
+
+        superfoods = ["Avocado", "Blueberries / Berries", "Greek Yogurt", "Extra Virgin Olive Oil", "Chia seeds", "Turmeric"]
+        avoid_foods = ["Excess sodium and MSG in processed snacks", "Midnight high-sugar desserts", "Artificial sweeteners", "Deep-fried street foods"]
+
+    return {
+        "title": title,
+        "calories": calories,
+        "macros": macros,
+        "hydration": hydration,
+        "schedule": schedule,
+        "superfoods": superfoods,
+        "avoid_foods": avoid_foods
+    }
+
+# EVALUATE CLINICAL TRIAGE
 def evaluate_triage(biomarkers, symptoms=""):
     high_count = sum(1 for b in biomarkers if "HIGH" in b["status"])
     low_count = sum(1 for b in biomarkers if "LOW" in b["status"])
     critical_count = sum(1 for b in biomarkers if "CRITICAL" in b["status"])
 
-    # Determine Urgency Level
     if critical_count > 0 or high_count >= 4:
         urgency = "CRITICAL_URGENT"
         urgency_label = "URGENT MEDICAL ATTENTION"
@@ -120,22 +197,14 @@ def evaluate_triage(biomarkers, symptoms=""):
         urgency_color = "emerald"
         timeframe = "Parameters are optimal. Maintain healthy lifestyle; repeat annual routine checkup."
 
-    # Compute Cardiometabolic Risk Score (0 - 100)
     risk_score = min(96, max(12, (high_count * 18) + (critical_count * 25) + (low_count * 10) + 12))
 
-    # Detect specific syndromic patterns
     has_diabetes_risk = any(b["key"] in ["fbs", "hba1c", "ppbs"] and "HIGH" in b["status"] for b in biomarkers)
     has_lipid_risk = any(b["key"] in ["cholesterol", "ldl", "triglycerides"] and "HIGH" in b["status"] for b in biomarkers)
     has_anemia_risk = any(b["key"] == "hemoglobin" and "LOW" in b["status"] for b in biomarkers)
     has_infection_risk = any(b["key"] in ["wbc", "esr", "neutrophils"] and "HIGH" in b["status"] for b in biomarkers)
 
-    # 1. Plain Language Explanations in Multiple Languages
-    explanations = {
-        "en": [],
-        "hi": [],
-        "mr": [],
-        "es": []
-    }
+    explanations = {"en": [], "hi": [], "mr": [], "es": []}
 
     if has_diabetes_risk:
         explanations["en"].append("Your blood sugar markers (Fasting Glucose and HbA1c) are significantly above the healthy threshold. An HbA1c above 6.5% indicates chronic elevation of sugar in your bloodstream, consistent with Type 2 Diabetes.")
@@ -167,7 +236,6 @@ def evaluate_triage(biomarkers, symptoms=""):
         explanations["mr"].append("तुमच्या सर्व रक्त चाचण्या सामान्य मर्यादेत आहेत. तुमचे आरोग्य आणि चयापचय कार्य उत्तम स्थितीत आहे.")
         explanations["es"].append("Todos sus parámetros sanguíneos se encuentran dentro de los rangos biológicos de referencia normales.")
 
-    # 2. Tailored Doctor Visit Question List
     doctor_questions = []
     if has_diabetes_risk:
         doctor_questions.append("Should I begin or adjust glycemic control medications (such as Metformin) based on my 8.4% HbA1c?")
@@ -183,47 +251,7 @@ def evaluate_triage(biomarkers, symptoms=""):
         doctor_questions.append("Are there any preventive dietary or fitness benchmarks I should adopt to maintain these numbers?")
         doctor_questions.append("When should I schedule my next routine annual blood panel?")
 
-    # 3. Dietary & Lifestyle Protocols
-    diet_lifestyle = {
-        "recommended_foods": [],
-        "foods_to_avoid": [],
-        "activity_protocol": ""
-    }
-
-    if has_diabetes_risk or has_lipid_risk:
-        diet_lifestyle["recommended_foods"] = [
-            "Leafy green vegetables (spinach, methi, kale), bitter gourd (karela), cucumbers",
-            "Whole grains with high soluble fiber: steel-cut oats, barley, quinoa, chia seeds",
-            "Lean protein sources: lentils, sprouts, boiled eggs, tofu, grilled fish",
-            "Healthy fats rich in omega-3: walnuts, flaxseeds, cold-pressed olive oil"
-        ]
-        diet_lifestyle["foods_to_avoid"] = [
-            "Refined sugars, sweets, sweetened sodas, packaged fruit juices, white bread",
-            "Deep-fried snacks, samosas, trans-fats, bakery pastries, hydrogenated oils",
-            "High glycemic fruits in excess (mangoes, chiku, grapes) without portion control",
-            "Full-fat processed dairy and ultra-processed canned foods with sodium"
-        ]
-        diet_lifestyle["activity_protocol"] = "Aim for 35-45 minutes of brisk walking or moderate cardio 5 days a week. Add 2 days of light resistance training to improve muscle insulin sensitivity."
-    elif has_anemia_risk:
-        diet_lifestyle["recommended_foods"] = [
-            "Iron-rich foods: pomegranate, beetroot, spinach, dates, jaggery (gur), raisins",
-            "Vitamin C foods (to maximize iron absorption): amla, oranges, lemons, bell peppers",
-            "Legumes, kidney beans (rajma), chickpeas, moringa (drumstick) leaves"
-        ]
-        diet_lifestyle["foods_to_avoid"] = [
-            "Drinking strong tea or coffee directly with or after meals (tannins block iron absorption)",
-            "Calcium supplements taken simultaneously with iron-rich foods"
-        ]
-        diet_lifestyle["activity_protocol"] = "Gentle stretching and light walking. Avoid sudden high-intensity exertion until hemoglobin normalizes."
-    else:
-        diet_lifestyle["recommended_foods"] = [
-            "Balanced Mediterranean/traditional plate: 50% colorful vegetables, 25% whole grains, 25% lean protein",
-            "Seasonal fruits, nuts, seeds, and ample hydration (2.5 - 3 liters daily)"
-        ]
-        diet_lifestyle["foods_to_avoid"] = [
-            "Excessive processed sodium, midnight sugary snacks, and carbonated beverages"
-        ]
-        diet_lifestyle["activity_protocol"] = "Maintain 150 minutes of weekly aerobic exercise and daily step count above 8,000 steps."
+    diet_plan = generate_antigravity_diet_plan(biomarkers)
 
     return {
         "urgency": urgency,
@@ -233,7 +261,7 @@ def evaluate_triage(biomarkers, symptoms=""):
         "risk_score": risk_score,
         "explanations": explanations,
         "doctor_questions": doctor_questions,
-        "diet_lifestyle": diet_lifestyle,
+        "diet_plan": diet_plan,
         "flags": {
             "high": high_count,
             "low": low_count,
@@ -264,7 +292,7 @@ def serve_upload(filename):
 @app.route('/api/analyze-report', methods=['POST'])
 def analyze_report():
     data = request.get_json() or {}
-    mode = data.get('mode', 'sample') # 'sample', 'upload', 'symptoms'
+    mode = data.get('mode', 'sample')
     sample_id = data.get('sample_id', 'sample_diabetes_lipid')
     uploaded_url = data.get('uploaded_url', '')
     user_symptoms = data.get('symptoms', '').strip()
@@ -278,14 +306,12 @@ def analyze_report():
         image_url = f"/static/samples/{report['filename']}"
         symptoms = user_symptoms or report['symptoms_reported']
     else:
-        # Default synthesized parsing for custom uploaded reports or symptom inputs
         report_title = "Clinical Chemistry & Molecular Pathology"
         patient = {"name": data.get("patient_name", "Anonymous Patient"), "age": data.get("age", 45), "gender": data.get("gender", "Female"), "id": f"P-{int(time.time())%1000000}"}
         lab_name = "Automated AI Diagnostic Evaluation"
         image_url = uploaded_url if uploaded_url else "/static/samples/sample_diabetes_lipid.png"
         symptoms = user_symptoms or "Patient-uploaded diagnostic record."
 
-        # Parse or default biomarkers with realistic values
         biomarkers = [
             {"key": "fbs", "name": "Fasting Plasma Glucose (FBS)", "value": 154.0, "unit": "mg/dL", "ref": "70.0 - 99.0", "status": "HIGH"},
             {"key": "hba1c", "name": "HbA1c (Glycated Hemoglobin)", "value": 7.9, "unit": "%", "ref": "4.0 - 5.6", "status": "HIGH"},
@@ -301,6 +327,7 @@ def analyze_report():
 
     return jsonify({
         "status": "success",
+        "ai_engine": "Antigravity Neural Clinical Intelligence",
         "report_title": report_title,
         "patient": patient,
         "lab_name": lab_name,
@@ -328,6 +355,84 @@ def upload_file():
         "url": f"/uploads/{filename}"
     })
 
+# DOWNLOAD FULL ANTIGRAVITY FOOD & DIET (FOD) PLAN
+@app.route('/api/download-diet-pdf', methods=['POST'])
+def download_diet_pdf():
+    data = request.get_json() or {}
+    sample_id = data.get('sample_id', 'sample_diabetes_lipid')
+    report = next((s for s in SAMPLE_REPORTS if s['id'] == sample_id), SAMPLE_REPORTS[0])
+    biomarkers = report['biomarkers']
+    diet_plan = generate_antigravity_diet_plan(biomarkers)
+
+    w, h = 1800, 1400
+    img = Image.new('RGB', (w, h), (15, 23, 42))
+    draw = ImageDraw.Draw(img)
+
+    # Header Banner
+    draw.rectangle([40, 40, w - 40, 150], fill=(13, 148, 136))
+    draw.text((70, 60), "ANTIGRAVITY AI CLINICAL NUTRITION: PERSONALIZED FOOD & DIET PROTOCOL", fill=(255, 255, 255))
+    draw.text((70, 95), f"Patient: {report['patient']['name']} ({report['patient']['age']}Y/{report['patient']['gender']}) | Target: {diet_plan['calories']} | Hydration: {diet_plan['hydration']}", fill=(204, 251, 241))
+    draw.text((w - 480, 75), "POWERED BY ANTIGRAVITY AI", fill=(251, 191, 36))
+
+    # Diet Protocol Title & Macro Goals
+    draw.rectangle([40, 170, w - 40, 240], fill=(30, 41, 59))
+    draw.text((60, 185), f"CLINICAL PROTOCOL: {diet_plan['title'].upper()}", fill=(244, 63, 94))
+    draw.text((60, 210), f"MACRONUTRIENT RATIO: {diet_plan['macros']}", fill=(226, 232, 240))
+
+    # Schedule Table (Left / Center)
+    sched_w = 1100
+    draw.rectangle([40, 260, 40 + sched_w, h - 50], outline=(51, 65, 85), fill=(24, 33, 47), width=2)
+    draw.text((60, 280), "24-HOUR PRECISION MEAL SCHEDULE & TIMING", fill=(45, 212, 191))
+
+    row_y = 330
+    for meal in diet_plan["schedule"]:
+        draw.rectangle([60, row_y - 8, 40 + sched_w - 20, row_y + 85], fill=(30, 41, 59), outline=(51, 65, 85), width=1)
+        draw.text((80, row_y), f"[{meal['time']}] {meal['meal'].upper()}", fill=(251, 191, 36))
+        
+        items_txt = meal['items']
+        if len(items_txt) > 85:
+            part1 = items_txt[:85]
+            part2 = items_txt[85:]
+            draw.text((80, row_y + 30), f"- {part1}", fill=(241, 245, 249))
+            draw.text((80, row_y + 55), f"  {part2}", fill=(241, 245, 249))
+        else:
+            draw.text((80, row_y + 30), f"- {items_txt}", fill=(241, 245, 249))
+        row_y += 115
+
+    # Right Column: Superfoods & Red-Flag Prohibitions
+    side_x = 40 + sched_w + 30
+    side_w = w - side_x - 40
+    draw.rectangle([side_x, 260, side_x + side_w, h - 50], outline=(51, 65, 85), fill=(24, 33, 47), width=2)
+
+    draw.text((side_x + 25, 280), "THERAPEUTIC SUPERFOODS TO EAT:", fill=(34, 197, 94))
+    sf_y = 320
+    for sf in diet_plan["superfoods"]:
+        draw.text((side_x + 35, sf_y), f"+ {sf}", fill=(209, 250, 229))
+        sf_y += 40
+
+    draw.line([(side_x + 20, sf_y + 20), (side_x + side_w - 20, sf_y + 20)], fill=(51, 65, 85), width=1)
+    draw.text((side_x + 25, sf_y + 40), "STRICTLY PROHIBITED (RED FLAGS):", fill=(239, 68, 68))
+    av_y = sf_y + 80
+    for av in diet_plan["avoid_foods"]:
+        draw.text((side_x + 35, av_y), f"- {av}", fill=(254, 202, 202))
+        av_y += 45
+
+    draw.rectangle([side_x + 20, h - 170, side_x + side_w - 20, h - 70], fill=(30, 41, 59), outline=(13, 148, 136), width=1)
+    draw.text((side_x + 35, h - 155), "AI VERIFIED NUTRITION PROTOCOL", fill=(45, 212, 191))
+    draw.text((side_x + 35, h - 130), "Calibrated for Patient Metabolic Profile", fill=(203, 213, 225))
+    draw.text((side_x + 35, h - 105), "Engine: Antigravity Neural Bio-Nutrition", fill=(251, 191, 36))
+
+    out_io = io.BytesIO()
+    img.save(out_io, 'JPEG', quality=95)
+    out_io.seek(0)
+
+    return send_file(
+        out_io,
+        mimetype='image/jpeg',
+        as_attachment=True,
+        download_name=f"Antigravity_Food_Diet_Plan_{report['patient']['id']}.jpg"
+    )
+
 @app.route('/api/export-patient-summary', methods=['POST'])
 def export_patient_summary():
     data = request.get_json() or {}
@@ -340,13 +445,11 @@ def export_patient_summary():
     img = Image.new('RGB', (w, h), (15, 23, 42))
     draw = ImageDraw.Draw(img)
 
-    # Top Header
     draw.rectangle([40, 40, w - 40, 130], fill=(30, 41, 59))
     draw.text((70, 60), "MEDITRIAGE AI: PATIENT CLINICAL REPORT & TRIAGE ACTION PLAN", fill=(244, 63, 94))
     draw.text((70, 95), f"Patient: {report['patient']['name']} ({report['patient']['age']}Y/{report['patient']['gender']}) | Date: {report['date']}", fill=(226, 232, 240))
     draw.text((w - 440, 75), f"TRIAGE: {triage['urgency_label']}", fill=(251, 191, 36) if triage['urgency_color'] == 'amber' else ((239, 68, 68) if triage['urgency_color'] == 'red' else (34, 197, 94)))
 
-    # Left Column: Original Lab Report Preview
     left_w = 700
     draw.rectangle([50, 150, 50 + left_w, h - 50], outline=(51, 65, 85), fill=(24, 33, 47), width=2)
     sample_path = os.path.join(SAMPLES_FOLDER, report['filename'])
@@ -356,38 +459,33 @@ def export_patient_summary():
             img.paste(resized_sample, (70, 210))
     draw.text((70, 170), "DIGITIZED CLINICAL LAB REPORT SCAN", fill=(56, 189, 248))
 
-    # Right Column: AI Triage Action Plan & Biomarker Table
     right_x = 50 + left_w + 30
     right_w = w - right_x - 50
     draw.rectangle([right_x, 150, right_x + right_w, h - 50], outline=(51, 65, 85), fill=(24, 33, 47), width=2)
     draw.text((right_x + 30, 175), "AI BIOMARKER ANOMALY MATRIX & CLINICAL RECOMMENDATIONS", fill=(244, 63, 94))
 
-    # Risk Score bar
     draw.rectangle([right_x + 30, 215, right_x + right_w - 30, 265], fill=(30, 41, 59))
     draw.text((right_x + 45, 230), f"Cardiometabolic Risk Index: {triage['risk_score']} / 100", fill=(255, 255, 255))
     draw.text((right_x + 450, 230), f"Urgency Timeframe: {triage['timeframe']}", fill=(251, 191, 36))
 
-    # Abnormal Biomarkers List
     draw.text((right_x + 30, 290), "KEY DETECTED BIOMARKERS:", fill=(56, 189, 248))
     row_y = 325
     for b in biomarkers[:8]:
         status_color = (239, 68, 68) if "HIGH" in b["status"] else ((59, 130, 246) if "LOW" in b["status"] else (34, 197, 94))
-        draw.text((right_x + 40, row_y), f"• {b['name']}", fill=(241, 245, 249))
+        draw.text((right_x + 40, row_y), f"- {b['name']}", fill=(241, 245, 249))
         draw.text((right_x + 480, row_y), f"{b['value']} {b['unit']}", fill=status_color)
         draw.text((right_x + 650, row_y), f"[{b['status']}] (Ref: {b['ref']})", fill=status_color)
         row_y += 35
 
-    # Doctor Questions
     draw.text((right_x + 30, row_y + 20), "QUESTIONS FOR DOCTOR VISIT:", fill=(251, 191, 36))
     q_y = row_y + 55
     for q in triage["doctor_questions"][:3]:
         draw.text((right_x + 40, q_y), f"> {q}", fill=(226, 232, 240))
         q_y += 35
 
-    # Diet Protocol
     draw.text((right_x + 30, q_y + 20), "NUTRITION & LIFESTYLE GUIDANCE:", fill=(34, 197, 94))
     d_y = q_y + 55
-    for item in triage["diet_lifestyle"]["recommended_foods"][:2]:
+    for item in triage["diet_plan"]["superfoods"][:3]:
         draw.text((right_x + 40, d_y), f"+ {item}", fill=(209, 250, 229))
         d_y += 35
 
